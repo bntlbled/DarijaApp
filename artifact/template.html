@@ -1,0 +1,370 @@
+<title>Darija Transcriber</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: one narrow reading column; input card, then a verdict card, then the transcript as a ruled list. */
+:root {
+  --bg: #f6f4ef; --card: #ffffff; --ink: #1d1c19; --muted: #67625a; --line: #e2ddd3;
+  --accent: #0f6e5a; --accent-ink: #ffffff;
+  --fr: #2253bd; --fr-bg: #e7eefc; --en: #1b7537; --en-bg: #e3f3e8; --msa: #7639ad; --msa-bg: #f0e7f9;
+  --ma: #c1272d; --dz: #006233; --unk: #8a857c; --err-bg: #fbe9e9; --err: #9b1c1c; --note-bg: #fff6dc; --note: #6d5310;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #151412; --card: #1f1e1b; --ink: #ece8e0; --muted: #a39d92; --line: #35322d;
+  --accent: #46b99a; --accent-ink: #0b1d18;
+  --fr: #93b3ff; --fr-bg: #1c2844; --en: #82d59d; --en-bg: #152e20; --msa: #cba6f2; --msa-bg: #2c2040;
+  --ma: #ff7c80; --dz: #52d18c; --unk: #8f8a81; --err-bg: #3a1c1c; --err: #ffb4b4; --note-bg: #332a12; --note: #f1d68a;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #151412; --card: #1f1e1b; --ink: #ece8e0; --muted: #a39d92; --line: #35322d;
+  --accent: #46b99a; --accent-ink: #0b1d18;
+  --fr: #93b3ff; --fr-bg: #1c2844; --en: #82d59d; --en-bg: #152e20; --msa: #cba6f2; --msa-bg: #2c2040;
+  --ma: #ff7c80; --dz: #52d18c; --unk: #8f8a81; --err-bg: #3a1c1c; --err: #ffb4b4; --note-bg: #332a12; --note: #f1d68a;
+  color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--f-body); }
+.wrap { max-width: 860px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header.wrap { padding-block: 28px 4px; }
+h1 { margin: 0; font: 800 clamp(1.6rem, 4vw, 2.1rem)/1.1 var(--f-display); letter-spacing: -0.02em; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin: 16px 0; }
+.tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.tab { border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 6px 13px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 0.92rem; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pane { display: grid; gap: 10px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.grow { flex: 1; }
+textarea, input[type=text] { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; }
+textarea { resize: vertical; min-height: 9rem; unicode-bidi: plaintext; }
+.btn { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 9px 14px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.small { padding: 4px 10px; font-size: 0.85rem; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:focus-visible, .tab:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.note { background: var(--note-bg); color: var(--note); padding: 10px 14px; border-radius: 10px; font-size: 0.93rem; }
+.note code { font-size: 0.88em; }
+.busy { display: flex; gap: 10px; align-items: center; color: var(--muted); margin: 12px 0; }
+.spinner { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.error { background: var(--err-bg); color: var(--err); padding: 10px 14px; border-radius: 10px; margin: 12px 0; }
+
+.verdict { display: flex; gap: 14px; align-items: center; }
+.flag { font-size: 2.4rem; line-height: 1; }
+.vLabel { font: 800 1.35rem/1.2 var(--f-display); }
+.meter { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 0.8rem; color: var(--muted); }
+.bar { flex: 1; height: 8px; background: var(--dz); border-radius: 99px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--ma); transition: width 0.4s; }
+.why { margin: 8px 0; color: var(--muted); font-size: 0.93rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 0.8rem; padding: 1px 9px; border-radius: 99px; border: 1px solid var(--line); }
+.chip.moroccan { border-color: var(--ma); color: var(--ma); }
+.chip.algerian { border-color: var(--dz); color: var(--dz); }
+.langs { display: flex; height: 22px; border-radius: 6px; overflow: hidden; margin: 12px 0 4px; font-size: 0.74rem; background: var(--line); }
+.langs > div { display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; color: var(--ink); }
+.langs .darija { background: var(--line); } .langs .fr { background: var(--fr-bg); color: var(--fr); }
+.langs .en { background: var(--en-bg); color: var(--en); } .langs .msa { background: var(--msa-bg); color: var(--msa); }
+.tools { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 12px; }
+.toggle { font-size: 0.88rem; display: flex; gap: 6px; align-items: center; }
+.legend { display: flex; gap: 6px; flex-wrap: wrap; font-size: 0.78rem; margin-top: 8px; }
+
+.lines { list-style: none; padding: 0; margin: 0 0 40px; }
+.line { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 3px 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+.ts { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.85rem; padding-top: 2px; }
+.arabizi { font-size: 1.06rem; font-weight: 600; overflow-wrap: anywhere; }
+.english { grid-column: 2; color: var(--muted); font-style: italic; }
+.src { grid-column: 2; font-size: 0.86rem; color: var(--muted); unicode-bidi: plaintext; }
+.lcues { grid-column: 2; font-size: 0.78rem; color: var(--muted); }
+.side { grid-row: 1 / span 4; grid-column: 3; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.tok { border-radius: 4px; padding: 0 3px; }
+.tok.fr { background: var(--fr-bg); color: var(--fr); }
+.tok.en { background: var(--en-bg); color: var(--en); }
+.tok.msa { background: var(--msa-bg); color: var(--msa); }
+.pill { font-size: 0.7rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; color: var(--card); background: var(--unk); }
+.pill.moroccan { background: var(--ma); } .pill.algerian { background: var(--dz); }
+.pill.mixed { background: linear-gradient(90deg, var(--ma) 50%, var(--dz) 50%); }
+.unclear { font-size: 0.7rem; color: var(--err); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
+footer.wrap { padding-block: 0 32px; font-size: 0.85rem; }
+@media (max-width: 560px) {
+  .line { grid-template-columns: minmax(0, 1fr) auto; }
+  .ts { grid-column: 1; }
+  .arabizi, .english, .src, .lcues { grid-column: 1 / span 2; }
+  .side { grid-row: 1; grid-column: 2; flex-direction: row; }
+}
+</style>
+
+<header class="wrap">
+  <h1>Darija Transcriber</h1>
+  <p class="sub">Arabizi with English underneath, Moroccan vs Algerian, and French and English words marked where speakers switch.</p>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-text" aria-selected="true" data-tab="text">Paste a transcript</button>
+      <button class="tab" role="tab" id="tab-audio" aria-selected="false" data-tab="audio">Audio</button>
+      <button class="tab" role="tab" id="tab-demo" aria-selected="false" data-tab="demo">Your Mina podcast</button>
+    </div>
+
+    <div class="pane" data-pane="text">
+      <p class="muted" style="margin:0">Paste what was said, in Arabic script, Arabizi or a mix, one line per segment. Claude transliterates, tags and translates it, and the dialect check runs on the result.</p>
+      <div class="row">
+        <span class="muted" style="font-size:.85rem">Examples:</span>
+        <button class="btn small" id="exMa">Moroccan</button>
+        <button class="btn small" id="exDz">Algerian</button>
+        <button class="btn small" id="exMix">Two speakers</button>
+      </div>
+      <textarea id="textIn" aria-label="Transcript to process"></textarea>
+      <input type="text" id="ctx" placeholder="Context (optional): e.g. podcast from Oran, two speakers">
+      <div class="row">
+        <button class="btn primary grow" id="go">Transcribe and translate</button>
+        <button class="btn" id="stop" hidden>Stop</button>
+      </div>
+      <p id="noClaude" class="note" hidden>Claude isn't available in this view, so only the Mina podcast tab works here. Open the page in claude.ai while signed in to use this tab.</p>
+    </div>
+
+    <div class="pane" data-pane="audio" hidden>
+      <p class="note" style="margin:0">Audio needs the full app running on a computer, because pages like this one can't use the microphone or a speech engine. To run it: download <code>DarijaApp</code> from GitHub, add an Anthropic key plus an ElevenLabs or OpenAI key to <code>.env</code>, and run <code>./run.sh</code>. Then open <code>localhost:8000</code> to record or upload audio. Everything after speech recognition works the same as the <b>Paste a transcript</b> tab here.</p>
+      <a class="btn" href="https://github.com/bntlbled/DarijaApp" target="_blank" rel="noopener">Open DarijaApp on GitHub</a>
+    </div>
+
+    <div class="pane" data-pane="demo" hidden>
+      <p class="muted" style="margin:0">The first 60 lines of your hand-made Mina transcript, shown in the app's format. Language tags come from a word list and the dialect from the marker check only, so no Claude call is made.</p>
+      <button class="btn primary" id="demoBtn">Show it</button>
+    </div>
+  </section>
+
+  <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busyMsg">Working…</span></div>
+  <div id="error" class="error" hidden></div>
+
+  <section id="results" hidden>
+    <div class="card">
+      <div class="verdict">
+        <div class="flag" id="vFlag"></div>
+        <div><div class="vLabel" id="vLabel"></div><div class="muted" id="vConf"></div></div>
+      </div>
+      <div class="meter"><span>Moroccan cues</span><div class="bar"><div id="barMa"></div></div><span>Algerian cues</span></div>
+      <p id="vWhy" class="why"></p>
+      <div id="cues" class="chips"></div>
+      <div class="langs" id="langs"></div>
+      <div class="row tools">
+        <label class="toggle"><input type="checkbox" id="showSrc"> Show original text</label>
+        <label class="toggle"><input type="checkbox" id="showCues"> Show dialect cues per line</label>
+        <span class="grow"></span>
+        <button class="btn small" id="copyMd">Copy as Markdown</button>
+      </div>
+      <div class="legend">
+        <span class="tok fr">French</span><span class="tok en">English</span><span class="tok msa">MSA</span>
+        <span class="pill moroccan">MA</span><span class="pill algerian">DZ</span><span class="pill mixed">MA/DZ</span><span class="pill unknown">?</span>
+      </div>
+    </div>
+    <ol id="lines" class="lines"></ol>
+  </section>
+</main>
+<footer class="wrap muted">Arabizi: 3 = ع, 7 = ح, 9 = ق, gh = غ, kh = خ, ch = ش, 2 = ء. Qaf is written 9 for both dialects.</footer>
+
+<script>
+const DEMO = __DEMO__;
+const SYSTEM = __SYSTEM__;
+
+const EXAMPLES = {
+  ma: "واش نتا مزيان؟ أنا دابا كنخدم ف Casa, c'est un peu compliqué\nخاصني نمشي للبنك، عافاك قول ليه يتسناني شي شوية\nالدراري ديالي كيبغيو يمشيو للبحر هاد le week-end",
+  dz: "راني fatigué بزاف، ما نقدرش نروح l'université ليوم\nواش راك خويا؟ دورك راني نخدم في une boîte ta3 informatique\nكي نكمل الخدمة نعيطلك، 3la khater ma 3andich le réseau",
+  mix: "— واش راك؟ ça fait longtemps! راني هنا في Paris دورك\n— الحمد لله، أنا كنخدم دابا ف Marrakech, c'est trop bien\n— عندك joj ولاد ولا زوج؟ هههه\n— زوج، wa7ed f l'école w wa7ed baqi sghir",
+};
+
+// ---------- marker scorer (same rules as app/dialect.py) ----------
+const MA = [
+  ["d[iy]a?l(i|ek|ak|o|ou|ha|na|kom|hom)?", 3, "dyal"], ["daba", 3, "daba"], ["j(o|ou)j", 2.5, "joj"],
+  ["bzaf", 1, "bzaf"], ["ghadi|ghad", 2, "ghadi"], ["wakha|wakhkha", 2.5, "wakha"], ["3afak|3afakom", 2.5, "3afak"],
+  ["a?chno|a?chnou|chnu", 1, "chno"], ["ach", 1.5, "ach"], ["fin|fayn|fine", 1.5, "fin"], ["imta|fo9ach", 2, "imta"],
+  ["mzyan|mzyana|mezyan", 1, "mzyan"], ["bghit|bgha|bghina|kanbghi|bghiti", 1.5, "bgha"], ["drari", 2.5, "drari"],
+  ["7it", 1.5, "7it"], ["chi", 1, "chi"], ["hadchi", 1, "hadchi"], ["khass(ni|ek|ak|o|ha|na|kom|hom)?", 2, "khass"],
+  ["mrat|merrat", 0.8, "mrat"],
+].map(([p, w, n]) => [new RegExp(`^(?:${p})$`), w, n]);
+const DZ = [
+  ["n?ta3(i|ek|ak|o|ou|ha|na|kom|hom|hem)?", 3, "ta3"], ["ra(h|ni|k|ki|hi|ho|hou|na|kom|hom|hem)", 2.5, "rah/rani"],
+  ["dork|dorka|drk|dorek", 3, "dork"], ["z(o|ou)dj?|zouj", 2.5, "zouj"], ["bezzaf|bezaf", 1.5, "bezzaf"],
+  ["kima", 1.5, "kima"], ["ki", 1, "ki"], ["win|winta|winek", 1.5, "win"], ["wa9tach|wa9teh", 2, "wa9tach"],
+  ["t?najem|nnajem|ynajem|tnajmou|najmou", 2.5, "najem"], ["mli7|mlih|mli7a", 1.5, "mli7"], ["barka", 1.5, "barka"],
+  ["yaser|yasser", 2, "yaser"], ["khatrat|khatra", 2, "khatra"], ["lazem|lazmek|lazmni", 1, "lazem"],
+  ["kifech|kifeh", 1.5, "kifech"], ["(n|t|y)?7ab(it|iti|ina|ou)?|n7eb|t7eb|y7eb", 1, "7ab"], ["rfed|yrfed|nrfed", 2, "rfed"],
+  ["wesh|wech", 1, "wesh"], ["bark", 1, "bark"],
+].map(([p, w, n]) => [new RegExp(`^(?:${p})$`), w, n]);
+const KA = /^(ka|ta)(n|t|y)[a-z0-9]{2,}$/, KAN = /^kan(et|t|ou|o|u|at)?(ch|chi)?$|^kont(i|ou|o)?$/;
+const KA_EX = new Set(["kayn", "kayna", "kaynin", "kaynch", "kayen", "kaynine", "tani", "tanya", "tanta", "kaynou", "kaytouni"]);
+
+function scoreTokens(tokens) {
+  const s = { ma: 0, dz: 0, cues: [] };
+  if (/\b3la khater\b/.test(tokens.join(" ").toLowerCase())) { s.dz += 2; s.cues.push(["3la khater", "algerian"]); }
+  for (const raw of tokens) for (let tok of (raw.toLowerCase().match(/[a-z0-9']+(?:-[a-z0-9']+)*/g) || [])) {
+    tok = tok.replace(/^(l|d|s|t|n|r|z|ch|ss|sh)-/, "").replace(/^['-]+|['-]+$/g, "");
+    if (!tok || tok === "khater") continue;
+    const m = MA.find(([rx]) => rx.test(tok)); if (m) { s.ma += m[1]; s.cues.push([tok, "moroccan"]); continue; }
+    const d = DZ.find(([rx]) => rx.test(tok)); if (d) { s.dz += d[1]; s.cues.push([tok, "algerian"]); continue; }
+    if (KA.test(tok) && !KA_EX.has(tok) && !KAN.test(tok)) { s.ma += 2; s.cues.push([tok, "moroccan"]); }
+  }
+  return s;
+}
+const pMa = (s) => (s.ma + 2) / (s.ma + s.dz + 4);
+function markerLabel(s) {
+  if (!s.ma && !s.dz) return "unknown";
+  const p = pMa(s);
+  if (p > 0.62) return "moroccan"; if (p < 0.38) return "algerian";
+  return s.ma >= 1.5 && s.dz >= 1.5 ? "mixed" : "unknown";
+}
+function combine(lab, conf, s) {
+  if (lab === "unknown" || !(conf > 0)) {
+    if (!s.ma && !s.dz) return ["unknown", 0];
+    const l = markerLabel(s), p = pMa(s);
+    return [l, l === "moroccan" ? p : l === "algerian" ? 1 - p : 1 - Math.abs(p - 0.5) * 2];
+  }
+  const pc = lab === "moroccan" ? 0.5 + conf / 2 : lab === "algerian" ? 0.5 - conf / 2 : 0.5;
+  const w = 0.5 * Math.min((s.ma + s.dz) / 8, 1), p = (1 - w) * pc + w * pMa(s);
+  if (Math.abs(p - 0.5) < 0.1) return ["mixed", 1 - Math.abs(p - 0.5) * 2];
+  return p > 0.5 ? ["moroccan", p] : ["algerian", 1 - p];
+}
+
+// ---------- Claude pass ----------
+const FORMAT = `Reply with JSON only, no prose, in exactly this shape:
+{"lines":[{"id":0,"tokens":[{"t":"word","lang":"darija|fr|en|msa|other"}],"english":"...","dialect":"moroccan|algerian|mixed|unknown","dialect_confidence":0.0,"dialect_cues":["..."],"unclear":false}],
+ "overall_dialect":"moroccan|algerian|mixed|unknown","overall_confidence":0.0,"overall_reasoning":"one or two sentences"}`;
+
+let sample = null, ctl = null, result = null;
+(async () => {
+  try { sample = window.claude ? await claude.use("sample") : null; } catch { sample = null; }
+  if (!sample) { $("#noClaude").hidden = false; $("#go").disabled = true; }
+})();
+
+async function runClaude(lines, context) {
+  const out = { lines: [], votes: [] };
+  for (let k = 0; k < lines.length; k += 40) {
+    const batch = lines.slice(k, k + 40);
+    $("#busyMsg").textContent = lines.length > 40
+      ? `Claude is working on lines ${k + 1}–${k + batch.length} of ${lines.length}…` : "Claude is transliterating and translating…";
+    const prompt = `${SYSTEM}\n\n${FORMAT}\n\n${context ? `Context about the recording: ${context}\n\n` : ""}Input lines (JSON):\n` +
+      JSON.stringify(batch.map(l => ({ id: l.id, text: l.text })), null, 1);
+    const res = await sample.json(prompt, { signal: ctl.signal, modelTier: "default" });
+    out.lines.push(...(res.lines || []));
+    out.votes.push([res.overall_dialect, res.overall_confidence, batch.length, res.overall_reasoning]);
+  }
+  return out;
+}
+
+function assemble(segs, outLines, votes) {
+  const byId = new Map(outLines.map(l => [l.id, l]));
+  const all = [], counts = {};
+  const lines = segs.map(s => {
+    const o = byId.get(s.id);
+    if (!o) return { ...s, source: s.text, tokens: [{ t: s.text, lang: "other" }], english: "", dialect: "unknown", confidence: 0, cues: [], unclear: true };
+    const toks = o.tokens || [];
+    toks.forEach(t => counts[t.lang] = (counts[t.lang] || 0) + 1);
+    const dar = toks.filter(t => t.lang === "darija").map(t => t.t); all.push(...dar);
+    const m = scoreTokens(dar);
+    const [lab, conf] = combine(o.dialect, o.dialect_confidence, m);
+    const cues = [...new Set([...(o.dialect_cues || []), ...m.cues.map(([t, d]) => `${t} (${d === "moroccan" ? "MA" : "DZ"})`)])].slice(0, 8);
+    return { start: s.start, source: s.text, tokens: toks, english: o.english, dialect: lab, confidence: conf, cues, unclear: !!o.unclear };
+  });
+  const total = votes.reduce((a, v) => a + v[2], 0) || 1;
+  let p = 0;
+  for (const [lab, conf, n] of votes) p += (lab === "moroccan" ? 0.5 + conf / 2 : lab === "algerian" ? 0.5 - conf / 2 : 0.5) * n / total;
+  const cl = p > 0.55 ? "moroccan" : p < 0.45 ? "algerian" : "mixed";
+  const clip = scoreTokens(all);
+  const [label, confidence] = combine(cl, Math.abs(p - 0.5) * 2, clip);
+  const nTok = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+  const tally = {}; clip.cues.forEach(([t, d]) => { const k = `${t} (${d})`; tally[k] = (tally[k] || 0) + 1; });
+  const votesTally = {}; lines.forEach(l => votesTally[l.dialect] = (votesTally[l.dialect] || 0) + 1);
+  return {
+    dialect: { label, confidence, reasoning: votes.map(v => v[3]).filter(Boolean).join(" "),
+      markers: { moroccan: clip.ma, algerian: clip.dz, top_cues: Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 10).map(e => e[0]) },
+      line_votes: votesTally },
+    languages: Object.fromEntries(Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, v / nTok])),
+    lines,
+  };
+}
+
+const ERR = {
+  not_granted: "Claude wasn't allowed for this page. Reload and choose Allow to use it.",
+  rate_limited: "Too many requests at once. Wait a minute, then try again.",
+  cancelled: "Stopped.",
+};
+
+$("#go").onclick = async () => {
+  const segs = $("#textIn").value.split("\n").map(s => s.trim()).filter(Boolean).map((text, id) => ({ id, start: null, text }));
+  if (!segs.length) return showError("Paste at least one line first.");
+  ctl = new AbortController();
+  $("#go").disabled = true; $("#stop").hidden = false; $("#error").hidden = true; $("#busy").hidden = false;
+  try {
+    const out = await runClaude(segs, $("#ctx").value.trim());
+    result = assemble(segs, out.lines, out.votes); render(result, false);
+  } catch (e) {
+    if (e && e.code !== "cancelled") showError(ERR[e?.code] || `Something went wrong: ${e?.message || e}. Try fewer lines.`);
+  } finally { $("#go").disabled = false; $("#stop").hidden = true; $("#busy").hidden = true; }
+};
+$("#stop").onclick = () => ctl?.abort();
+
+// ---------- UI ----------
+function $(s) { return document.querySelector(s); }
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t));
+  document.querySelectorAll(".pane").forEach(p => p.hidden = p.dataset.pane !== t.dataset.tab);
+});
+$("#exMa").onclick = () => $("#textIn").value = EXAMPLES.ma;
+$("#exDz").onclick = () => $("#textIn").value = EXAMPLES.dz;
+$("#exMix").onclick = () => $("#textIn").value = EXAMPLES.mix;
+$("#textIn").value = EXAMPLES.ma;
+$("#demoBtn").onclick = () => { result = DEMO; render(DEMO, true); };
+function showError(m) { const e = $("#error"); e.textContent = m; e.hidden = false; }
+
+const FLAG = { moroccan: "🇲🇦", algerian: "🇩🇿", mixed: "🇲🇦🇩🇿", unknown: "❔" };
+const NAME = { moroccan: "Moroccan Darija", algerian: "Algerian Darija", mixed: "Mixed, both dialects", unknown: "Not sure yet" };
+const PILL = { moroccan: "MA", algerian: "DZ", mixed: "MA/DZ", unknown: "?" };
+const LANGN = { darija: "Darija", fr: "French", en: "English", msa: "MSA", other: "" };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (sec) => { sec = Math.floor(sec || 0); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; };
+
+function render(r, demo) {
+  const d = r.dialect;
+  $("#results").hidden = false;
+  $("#vFlag").textContent = FLAG[d.label];
+  $("#vLabel").textContent = NAME[d.label];
+  $("#vConf").textContent = `${Math.round(d.confidence * 100)}% confidence · lines: ` +
+    Object.entries(d.line_votes).map(([k, v]) => `${v} ${PILL[k]}`).join(", ");
+  const tot = d.markers.moroccan + d.markers.algerian;
+  $("#barMa").style.width = tot ? `${(100 * d.markers.moroccan) / tot}%` : "50%";
+  $("#vWhy").textContent = d.reasoning || "";
+  $("#cues").innerHTML = d.markers.top_cues.map(c => `<span class="chip ${c.includes("moroccan") ? "moroccan" : "algerian"}">${esc(c.replace(/ \((moroccan|algerian)\)/, ""))}</span>`).join("");
+  $("#langs").innerHTML = Object.entries(r.languages).filter(([k]) => k !== "other").map(([k, v]) =>
+    `<div class="${k}" style="width:${v * 100}%">${v > 0.07 ? `${LANGN[k]} ${Math.round(v * 100)}%` : ""}</div>`).join("");
+  $("#showSrc").disabled = demo;
+  drawLines();
+}
+function drawLines() {
+  const showSrc = $("#showSrc").checked, showCues = $("#showCues").checked;
+  $("#lines").innerHTML = result.lines.map((l, i) => {
+    const toks = l.tokens.map(t => t.lang === "darija" || t.lang === "other" ? esc(t.t)
+      : `<span class="tok ${t.lang}" title="${LANGN[t.lang]}">${esc(t.t)}</span>`).join(" ");
+    return `<li class="line">
+      <span class="ts">${l.start == null ? i + 1 : fmt(l.start)}</span>
+      <div class="arabizi">${toks}</div>
+      <div class="side"><span class="pill ${l.dialect}" title="${Math.round(l.confidence * 100)}%">${PILL[l.dialect]}</span>${l.unclear ? '<span class="unclear">unclear</span>' : ""}</div>
+      <div class="english">${esc(l.english)}</div>
+      ${showSrc && l.source ? `<div class="src">${esc(l.source)}</div>` : ""}
+      ${showCues && l.cues.length ? `<div class="lcues">cues: ${esc(l.cues.join(", "))}</div>` : ""}
+    </li>`;
+  }).join("");
+}
+$("#showSrc").onchange = drawLines; $("#showCues").onchange = drawLines;
+
+$("#copyMd").onclick = async () => {
+  const md = result.lines.map((l, i) => `**${l.start == null ? i + 1 : fmt(l.start)}**\n${l.tokens.map(t => t.t).join(" ")}\n*${l.english}*${l.unclear ? " **[unclear]**" : ""}\n`).join("\n");
+  try { await navigator.clipboard.writeText(md); $("#copyMd").textContent = "Copied"; }
+  catch { $("#copyMd").textContent = "Copy blocked here"; }
+  setTimeout(() => $("#copyMd").textContent = "Copy as Markdown", 1800);
+};
+</script>
