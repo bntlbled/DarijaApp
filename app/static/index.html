@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Darija Transcriber</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Darija Transcriber</h1>
+    <p class="sub">Audio in, Arabizi out, with English underneath. Tells Moroccan from Algerian and marks French and English words.</p>
+    <div id="status" class="status">Checking setup…</div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card input">
+    <div class="tabs" role="tablist">
+      <button role="tab" class="tab active" data-tab="audio">Audio</button>
+      <button role="tab" class="tab" data-tab="text">Paste transcript</button>
+      <button id="demoBtn" class="tab ghost" title="See the output format using your Mina podcast transcript">Try the demo</button>
+    </div>
+
+    <div class="pane" data-pane="audio">
+      <div class="row">
+        <button id="recBtn" class="btn primary"><span class="dot"></span><span id="recLabel">Record</span></button>
+        <span class="or">or</span>
+        <label class="btn file">
+          <input id="fileIn" type="file" accept="audio/*,video/*">
+          <span id="fileLabel">Choose an audio file</span>
+        </label>
+        <span id="recTime" class="muted"></span>
+      </div>
+      <audio id="player" controls hidden></audio>
+      <div class="row opts">
+        <label>Speech engine
+          <select id="backend"><option value="">Default</option></select>
+        </label>
+        <label class="grow">Context (optional)
+          <input id="ctxAudio" type="text" placeholder="e.g. podcast from Oran, two speakers, talking about studying abroad">
+        </label>
+      </div>
+      <button id="goAudio" class="btn primary wide" disabled>Transcribe</button>
+    </div>
+
+    <div class="pane" data-pane="text" hidden>
+      <p class="muted">Skip speech recognition: paste a transcript in Arabic script, Arabizi or a mix, one line per segment.</p>
+      <textarea id="textIn" rows="6" placeholder="واش راك خويا؟ rani mli7, ça va bien hamdoullah"></textarea>
+      <input id="ctxText" type="text" placeholder="Context (optional)">
+      <button id="goText" class="btn primary wide">Process</button>
+    </div>
+  </section>
+
+  <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busyMsg">Working…</span></div>
+  <div id="error" class="error" hidden></div>
+
+  <section id="results" hidden>
+    <div class="card summary">
+      <div class="verdict">
+        <div class="flag" id="vFlag"></div>
+        <div>
+          <div class="vLabel" id="vLabel"></div>
+          <div class="muted" id="vConf"></div>
+        </div>
+      </div>
+      <div class="meter" aria-label="Moroccan versus Algerian evidence">
+        <span>🇲🇦</span><div class="bar"><div id="barMa"></div></div><span>🇩🇿</span>
+      </div>
+      <p id="vWhy" class="why"></p>
+      <div id="cues" class="chips"></div>
+      <div class="langs" id="langs"></div>
+      <div class="row tools">
+        <label class="toggle"><input type="checkbox" id="showSrc"> Show recognised text</label>
+        <label class="toggle"><input type="checkbox" id="showCues"> Show dialect cues per line</label>
+        <span class="grow"></span>
+        <button id="dlMd" class="btn small">Download .md</button>
+        <button id="dlJson" class="btn small">Download .json</button>
+      </div>
+      <div class="legend">
+        <span class="tok fr">French</span><span class="tok en">English</span><span class="tok msa">MSA</span>
+        <span class="pill moroccan">MA</span><span class="pill algerian">DZ</span><span class="pill unknown">?</span>
+      </div>
+    </div>
+    <ol id="lines" class="lines"></ol>
+  </section>
+</main>
+
+<footer class="wrap muted small">Conventions: 3 = ع, 7 = ح, 9 = ق, gh = غ, kh = خ, ch = ش, 2 = ء. Qaf is written 9 for both dialects.</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
