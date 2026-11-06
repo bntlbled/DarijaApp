@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Darija Transcriber</title>
 <link rel="stylesheet" href="/static/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f6e5a">
 </head>
 <body>
 <header class="top">
   <div class="wrap">
     <h1>Darija Transcriber</h1>
-    <p class="sub">Audio in, Arabizi out, with English underneath. Tells Moroccan from Algerian and marks French and English words.</p>
+    <p class="sub">Audio or Instagram reels in, Arabizi out, with English underneath. Tells Moroccan from Algerian and marks French and English words.</p>
     <div id="status" class="status">Checking setup…</div>
   </div>
 </header>
@@ -18,7 +21,8 @@
 <main class="wrap">
   <section class="card input">
     <div class="tabs" role="tablist">
-      <button role="tab" class="tab active" data-tab="audio">Audio</button>
+      <button role="tab" class="tab active" data-tab="audio">Audio / video</button>
+      <button role="tab" class="tab" data-tab="ig">Instagram</button>
       <button role="tab" class="tab" data-tab="text">Paste transcript</button>
       <button id="demoBtn" class="tab ghost" title="See the output format using your Mina podcast transcript">Try the demo</button>
     </div>
@@ -29,7 +33,7 @@
         <span class="or">or</span>
         <label class="btn file">
           <input id="fileIn" type="file" accept="audio/*,video/*">
-          <span id="fileLabel">Choose an audio file</span>
+          <span id="fileLabel">Choose audio or a saved reel</span>
         </label>
         <span id="recTime" class="muted"></span>
       </div>
@@ -38,11 +42,38 @@
         <label>Speech engine
           <select id="backend"><option value="">Default</option></select>
         </label>
+        <label>Spoken language
+          <select id="language">
+            <option value="">Default</option>
+            <option value="auto">Auto-detect (lots of French)</option>
+            <option value="ara">Mostly Darija</option>
+          </select>
+        </label>
         <label class="grow">Context (optional)
           <input id="ctxAudio" type="text" placeholder="e.g. podcast from Oran, two speakers, talking about studying abroad">
         </label>
       </div>
       <button id="goAudio" class="btn primary wide" disabled>Transcribe</button>
+    </div>
+
+    <div class="pane" data-pane="ig" hidden>
+      <div class="row">
+        <input id="igUrl" class="grow" type="url" placeholder="Paste a reel link from your account, e.g. https://www.instagram.com/reel/…">
+        <button id="goIgUrl" class="btn primary">Transcribe reel</button>
+      </div>
+      <div id="igOwn">
+        <div class="row"><button id="igLoad" class="btn small">Show my reels</button><span id="igAcct" class="muted"></span></div>
+        <ul id="igList" class="iglist"></ul>
+      </div>
+      <details class="howto">
+        <summary>Reel from someone else's account?</summary>
+        <p>Instagram's terms don't let apps download other people's reels automatically, so save the video first and bring it here:</p>
+        <ol>
+          <li>If the creator allows it, tap <b>Share → Download</b> (or <b>… → Save</b>) on the reel.</li>
+          <li>Otherwise, screen-record the reel with sound on.</li>
+          <li>Then pick the file in <b>Audio / video</b>, or on Android use <b>Share → Darija Transcriber</b> after adding this app to your home screen.</li>
+        </ol>
+      </details>
     </div>
 
     <div class="pane" data-pane="text" hidden>

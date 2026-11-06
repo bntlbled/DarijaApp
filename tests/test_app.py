@@ -71,7 +71,7 @@ def test_pipeline_and_api(monkeypatch):
 
 def test_transcribe_endpoint_uses_asr(monkeypatch):
     monkeypatch.setattr(language, "process_lines", fake_process)
-    monkeypatch.setattr(asr, "transcribe", lambda a, n, b=None: [{"start": 1.0, "end": 2.0, "text": "راني"}])
+    monkeypatch.setattr(asr, "transcribe", lambda a, n, b=None, l=None: [{"start": 1.0, "end": 2.0, "text": "راني"}])
     r = client.post("/api/transcribe", files={"file": ("a.webm", b"xx", "audio/webm")})
     assert r.status_code == 200, r.text
     assert r.json()["lines"][0]["start"] == 1.0
