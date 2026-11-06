@@ -36,14 +36,16 @@ def default_backend() -> str | None:
     return av[0] if av else None
 
 
-def transcribe(audio: bytes, filename: str, backend: str | None = None) -> list[dict]:
+def transcribe(audio: bytes, filename: str, backend: str | None = None, language: str | None = None) -> list[dict]:
+    """language: None = server default, "auto" = let the engine detect (better when a clip is
+    mostly French), or an ISO code such as "ara" / "fra"."""
     backend = backend or default_backend()
     if backend == "elevenlabs":
-        return _elevenlabs(audio, filename)
+        return _elevenlabs(audio, filename, language)
     if backend == "openai":
         return _openai(audio, filename)
     if backend == "local":
-        return _local(audio, filename)
+        return _local(audio, filename, language)
     raise RuntimeError(
         "No speech recognition backend configured. Set ELEVENLABS_API_KEY or OPENAI_API_KEY, "
         "or install faster-whisper (see README)."
@@ -52,14 +54,16 @@ def transcribe(audio: bytes, filename: str, backend: str | None = None) -> list[
 
 # --- ElevenLabs Scribe: word timestamps, handles Arabic/French code-switching well ---
 
-def _elevenlabs(audio: bytes, filename: str) -> list[dict]:
+def _elevenlabs(audio: bytes, filename: str, language: str | None = None) -> list[dict]:
     data = {
         "model_id": os.environ.get("ELEVENLABS_MODEL", "scribe_v1"),
         "timestamps_granularity": "word",
         "tag_audio_events": "true",
         "diarize": "true",
     }
-    lang = os.environ.get("ELEVENLABS_LANGUAGE", "ara")  # leave empty to auto-detect
+    lang = os.environ.get("ELEVENLABS_LANGUAGE", "ara") if language is None else language  # empty = auto-detect
+    if lang == "auto":
+        lang = ""
     if lang:
         data["language_code"] = lang
     r = httpx.post(
@@ -111,7 +115,7 @@ def _openai(audio: bytes, filename: str) -> list[dict]:
 _local_model = None
 
 
-def _local(audio: bytes, filename: str) -> list[dict]:
+def _local(audio: bytes, filename: str, language: str | None = None) -> list[dict]:
     global _local_model
     import io
 
@@ -123,7 +127,7 @@ def _local(audio: bytes, filename: str) -> list[dict]:
             device=os.environ.get("LOCAL_WHISPER_DEVICE", "auto"),
             compute_type=os.environ.get("LOCAL_WHISPER_COMPUTE", "int8"),
         )
-    segs, _ = _local_model.transcribe(io.BytesIO(audio), language="ar", vad_filter=True)
+    segs, _ = _local_model.transcribe(io.BytesIO(audio), language=None if language == "auto" else "ar", vad_filter=True)
     return [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in segs]
 
 

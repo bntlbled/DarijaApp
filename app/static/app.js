@@ -7,6 +7,7 @@ fetch("/api/status").then(r => r.json()).then(s => {
   const cl = s.claude ? "<b>connected</b>" : `<span class="warn">no API key</span>`;
   $("#status").innerHTML = `Speech engine: ${asr} · Claude: ${cl}`;
   for (const b of s.asr_backends) $("#backend").insertAdjacentHTML("beforeend", `<option value="${b}">${b}</option>`);
+  if (!s.instagram) $("#igAcct").textContent = "Instagram isn't connected yet (see README). Pasted links and your reel list need it.";
 }).catch(() => $("#status").textContent = "Server not reachable.");
 
 // ---------- tabs ----------
@@ -50,8 +51,58 @@ $("#goAudio").onclick = () => {
   fd.append("file", audioBlob, audioName);
   fd.append("backend", $("#backend").value);
   fd.append("context", $("#ctxAudio").value);
+  fd.append("language", $("#language").value);
   run(fetch("/api/transcribe", { method: "POST", body: fd }), "Recognising speech, then transliterating and translating…");
 };
+// ---------- Instagram ----------
+function selectTab(name) { document.querySelector(`.tab[data-tab="${name}"]`).click(); }
+function igRun(body) {
+  audioName = body.media_id ? `reel-${body.media_id}` : "instagram-reel";
+  run(fetch("/api/instagram/transcribe", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...body, backend: $("#backend").value, language: $("#language").value, context: $("#ctxAudio").value }),
+  }), "Fetching the reel, pulling out the audio, then transcribing…");
+}
+$("#goIgUrl").onclick = () => {
+  const url = $("#igUrl").value.trim();
+  if (!url) return showError("Paste a reel link first.");
+  igRun({ url });
+};
+$("#igLoad").onclick = async () => {
+  $("#error").hidden = true;
+  try {
+    const r = await fetch("/api/instagram/media"); const js = await r.json();
+    if (!r.ok) throw new Error(js.detail || r.statusText);
+    $("#igAcct").textContent = `@${js.account.username} · ${js.videos.length} videos`;
+    $("#igList").innerHTML = js.videos.map(v => `<li>
+      <button class="igitem" data-id="${esc(v.id)}" ${v.has_video_url ? "" : "disabled title=\"Instagram withholds this video (licensed music). Download it and upload the file.\""}>
+        ${v.thumbnail ? `<img src="${esc(v.thumbnail)}" alt="" loading="lazy">` : `<span class="nothumb">▶</span>`}
+        <span class="cap">${esc(v.caption || "(no caption)")}</span>
+        <span class="muted small">${esc((v.timestamp || "").slice(0, 10))}${v.has_video_url ? "" : " · music-locked"}</span>
+      </button></li>`).join("") || "<li class=muted>No videos on this account.</li>";
+  } catch (e) { showError(e.message); }
+};
+$("#igList").onclick = (e) => { const b = e.target.closest(".igitem"); if (b && !b.disabled) igRun({ media_id: b.dataset.id }); };
+
+// Arriving from the Android share sheet.
+(async () => {
+  const q = new URLSearchParams(location.search);
+  history.replaceState(null, "", "/");
+  if (q.get("shared")) {
+    try {
+      const r = await fetch(`/api/shared/${encodeURIComponent(q.get("shared"))}`);
+      if (!r.ok) throw new Error((await r.json()).detail);
+      const name = "shared" + q.get("shared").replace(/^[0-9a-f]+/, "");
+      setAudio(await r.blob(), name); $("#fileLabel").textContent = "Shared video";
+      selectTab("audio");
+    } catch (e) { showError(e.message || "Couldn't open the shared file."); }
+  } else if (q.get("ig")) {
+    selectTab("ig"); $("#igUrl").value = q.get("ig");
+    const st = await fetch("/api/status").then(r => r.json()).catch(() => ({}));
+    if (!st.instagram) showError("You shared a link. Apps can't download other people's reels from a link; share the video file itself (download or screen-record it first).");
+  } else if (q.get("share_error")) showError("That file was too large (100 MB max).");
+})();
+
 $("#goText").onclick = () => {
   run(fetch("/api/process-text", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -133,3 +184,5 @@ $("#dlMd").onclick = async () => {
     body: JSON.stringify({ result, title: audioName.replace(/\.[^.]+$/, "") || "Transcript" }) });
   download("transcript.md", await r.text(), "text/markdown");
 };
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
